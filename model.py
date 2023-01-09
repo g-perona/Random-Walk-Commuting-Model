@@ -65,7 +65,7 @@ class RandomWalkModel():
         self.n_steps = 0
         self.current_node = self.start_node
 
-    def simulate_agent(self, n_iter):
+    def simulate_agent(self, origin, n_iter):
         '''
         Simulates the agent's job search process N_ITER times, and returns the node of the job location,
         or -1 if no job is found.
@@ -90,14 +90,15 @@ class RandomWalkModel():
             destinations = np.append(destinations, simulate_single_iter())
             self.reset()
 
-        return destinations
+        return pd.DataFrame(np.array(np.unique(a.simulate(100), return_counts=True)).T, columns=['destination', 'flow'])
 
 
     def simulate(self):
         flow_data = pd.DataFrame(columns=['origin', 'destination', 'flow'])
 
-        for i, node in enumerate(self.graph.nodes):
+        for i, origin in enumerate(self.graph.nodes):
             node_pop = self.populations[node]
             node_agents = self.agents_per_node[node]
 
-            self.simulate_agent(node_agents)
+            dest_data = self.simulate_agent(node_agents)
+            dest_data['origin'] = np.repeat(node, )
