@@ -2,18 +2,24 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import skmob
 
-class Agent():
+class RandomWalkModel():
+    '''
+    Simulates agents' job search process through a graph of zones 
+    eg. cities, counties, census tracts, etc. as random walks to model 
+    commuting flows in a specified area.
+    '''
 
-    def __init__(self, graph, start_node, q, max_steps, seed=None):
+    def __init__(self, graph, q, max_steps, n_agents, seed=None):
         '''
-        Initialize the agent, giving where GRAPH is the graph it should traverse,
-        and START_NODE is the node where the agent begins its job search
+        Initialize the simulation, where GRAPH is the graph the agents should traverse.
 
         Arguments:
-        graph: NetworkX Graph object
-        start_node: int - The index of the node in GRAPH where the agent should start
-            its job search.
+        graph: NetworkX Graph object - 
+        q: double in (0,1) - The probability that an individual job application will fail
+        max_steps: int - the max number of inter-zone steps the agents will make
+        n_agents: int - gives the number of agents that will be used in the simulation
         '''
         self.graph = graph              # connectivity of the various locations
         self.start_node = start_node    # home node
@@ -21,11 +27,16 @@ class Agent():
         self.n_steps = 0                # number of steps taken away from home node in order to find a job
         self.q = q                      # the probability that an individual job application fails
         self.max_steps = max_steps      # the number of steps the agent will take before stopping its search
+        self.n_agents = n_agents
         self.seed = seed                # a seed that can be used to make random actions of the agent predictable
+
+        self.populations = {node: graph.nodes[node]['population'] for node in graph.nodes}
+        self.tot_pop = np.sum(list(populations.values))
+        self.agents_per_node = {node: int(n_agents * (populations[node]) / tot_pop) for node in graph.nodes}
     
     def job_search(self):
         '''
-        Simulates a job search within the current node, using Agent.q as the probability
+        Simulates a job search within the current node, using self.q as the probability
         of being rejected from each indiviudal job, and uses the "population" attribute
         of the node as the number of available jobs.
 
@@ -54,7 +65,7 @@ class Agent():
         self.n_steps = 0
         self.current_node = self.start_node
 
-    def simulate(self, n_iter):
+    def simulate_agent(self, n_iter):
         '''
         Simulates the agent's job search process N_ITER times, and returns the node of the job location,
         or -1 if no job is found.
@@ -80,3 +91,13 @@ class Agent():
             self.reset()
 
         return destinations
+
+
+    def simulate(self):
+        flow_data = pd.DataFrame(columns=['origin', 'destination', 'flow'])
+
+        for i, node in enumerate(self.graph.nodes):
+            node_pop = self.populations[node]
+            node_agents = self.agents_per_node[node]
+
+            self.simulate_agent(node_agents)
