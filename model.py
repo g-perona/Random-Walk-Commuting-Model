@@ -76,7 +76,49 @@ class Agent():
             np.random.seed(self.seed)
         destinations = np.array([])
         for i in range(n_iter):
-            destinations = np.append(destinations, simulate_single_iter())
+            dest = simulate_single_iter()
+            if dest == -1:
+                continue
+            destinations = np.append(destinations, dest)
             self.reset()
 
-        return destinations
+        return pd.DataFrame(np.array(np.unique(destinations, return_counts=True)).T, columns=['destination', 'flow'])
+
+class Simulation():
+
+    def __init__(self, graph, q, max_steps, n_agents, seed=None):
+        '''
+        Initialize the simulation, where GRAPH is the graph the agents should traverse.
+        Arguments:
+        graph: NetworkX Graph object - 
+        q: double in (0,1) - The probability that an individual job application will fail
+        max_steps: int - the max number of inter-zone steps the agents will make
+        n_agents: int - gives the number of agents that will be used in the simulation
+        '''
+        self.graph = graph              # connectivity of the various locations
+        self.q = q                      # the probability that an individual job application fails
+        self.max_steps = max_steps      # the number of steps the agent will take before stopping its search
+        self.n_agents = n_agents
+        self.seed = seed                # a seed that can be used to make random actions of the agent predictable
+
+        self.populations = {node: graph.nodes[node]['population'] for node in graph.nodes}
+        self.tot_pop = np.sum(list(self.populations.values()))
+        self.agents_per_node = {node: int(n_agents * (self.populations[node]) / self.tot_pop) for node in graph.nodes}
+
+
+    def simulate(self):
+
+        flow_data = pd.DataFrame(columns=['origin', 'destination', 'flow'])
+
+        for i, origin in enumerate(self.graph.nodes):
+            node_pop = self.populations[origin]
+            n_agents = self.agents_per_node[origin]
+            a = Agent(graph=self.graph, start_node=origin, q=self.q, max_steps=self.max_steps, seed=self.seed)
+
+            dest_data = a.simulate(n_agents)
+            dest_data['origin'] = np.repeat(origin, len(dest_data))
+            dest_data['flow'] = dest_data['flow'].astype('int')
+
+            flow_data = pd.concat((flow_data, dest_data), axis=0, ignore_index=True)
+
+        return flow_data
